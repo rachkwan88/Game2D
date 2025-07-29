@@ -113,7 +113,7 @@ class MallScene extends Phaser.Scene {
         if (this.textures.exists('player')) {
             console.log('Player texture found, using actual image');
             this.player = this.physics.add.sprite(400, 350, 'player');
-            this.player.setScale(1.0);
+            this.player.setScale(0.8); // Slightly smaller to match stores
             this.player.setDepth(10); // Put player in front
             console.log('Player image loaded successfully');
         } else {
@@ -140,37 +140,38 @@ class MallScene extends Phaser.Scene {
     createStores() {
         console.log('Creating stores');
         
-        // Store 1
-        const store1 = this.physics.add.sprite(150, 150, 'store1');
+        // All stores aligned horizontally at y=200
+        // Store 1 (Left)
+        const store1 = this.physics.add.sprite(150, 200, 'store1');
         store1.name = 'Store 1';
-        store1.setScale(0.8);
-        store1.setDepth(5); // Put stores behind player
+        store1.setScale(0.6); // Slightly smaller for better fit
+        store1.setDepth(5);
         this.stores.push(store1);
 
-        // Store 2
-        const store2 = this.physics.add.sprite(600, 150, 'store2');
+        // Store 2 (Center)
+        const store2 = this.physics.add.sprite(400, 200, 'store2');
         store2.name = 'Store 2';
-        store2.setScale(0.8);
-        store2.setDepth(5); // Put stores behind player
+        store2.setScale(0.6); // Slightly smaller for better fit
+        store2.setDepth(5);
         this.stores.push(store2);
 
-        // Store 3
-        const store3 = this.physics.add.sprite(400, 450, 'store3');
+        // Store 3 (Right)
+        const store3 = this.physics.add.sprite(650, 200, 'store3');
         store3.name = 'Store 3';
-        store3.setScale(0.8);
-        store3.setDepth(5); // Put stores behind player
+        store3.setScale(0.6); // Slightly smaller for better fit
+        store3.setDepth(5);
         this.stores.push(store3);
 
         // Add store labels
         this.stores.forEach(store => {
-            const text = this.add.text(store.x, store.y + 100, store.name, {
+            const text = this.add.text(store.x, store.y + 80, store.name, {
                 fontSize: '16px',
                 fill: '#ffffff',
                 backgroundColor: '#000000',
                 padding: { x: 8, y: 4 }
             });
             text.setOrigin(0.5);
-            text.setDepth(15); // Put labels in front of everything
+            text.setDepth(15);
         });
         
         console.log('Stores created');
