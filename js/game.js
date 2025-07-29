@@ -245,25 +245,31 @@ class MallScene extends Phaser.Scene {
         // Store 1 (Left)
         const store1 = this.physics.add.sprite(80, 200, 'store1');
         store1.name = 'Store 1';
-        store1.setScale(0.4); // Even smaller scale for more space
+        store1.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store1.setDepth(5);
         console.log('Store 1 created at:', store1.x, store1.y);
+        console.log('Store 1 scale:', store1.scaleX, 'x', store1.scaleY);
+        console.log('Store 1 display width:', store1.width * store1.scaleX);
         this.stores.push(store1);
 
         // Store 2 (Center)
         const store2 = this.physics.add.sprite(400, 200, 'store2');
         store2.name = 'Store 2';
-        store2.setScale(0.4); // Even smaller scale for more space
+        store2.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store2.setDepth(5);
         console.log('Store 2 created at:', store2.x, store2.y);
+        console.log('Store 2 scale:', store2.scaleX, 'x', store2.scaleY);
+        console.log('Store 2 display width:', store2.width * store2.scaleX);
         this.stores.push(store2);
 
         // Store 3 (Right)
         const store3 = this.physics.add.sprite(720, 200, 'store3');
         store3.name = 'Store 3';
-        store3.setScale(0.4); // Even smaller scale for more space
+        store3.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store3.setDepth(5);
         console.log('Store 3 created at:', store3.x, store3.y);
+        console.log('Store 3 scale:', store3.scaleX, 'x', store3.scaleY);
+        console.log('Store 3 display width:', store3.width * store3.scaleX);
         this.stores.push(store3);
         
         // Debug store positions
