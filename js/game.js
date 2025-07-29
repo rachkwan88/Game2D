@@ -18,6 +18,11 @@ class MallScene extends Phaser.Scene {
             collectable3: false
         };
         this.collectionText = null;
+        this.monster = null;
+        this.projectiles = [];
+        this.shootKey = null;
+        this.lastShootTime = 0;
+        this.shootCooldown = 500; // 500ms cooldown between shots
         console.log('Constructor: Collection status initialized at 0/3');
     }
 
@@ -45,6 +50,11 @@ class MallScene extends Phaser.Scene {
         this.load.image('collectable1', 'images/collectables/Collectable1.png');
         this.load.image('collectable2', 'images/collectables/Collectable2.png');
         this.load.image('collectable3', 'images/collectables/Collectable3.png');
+        
+        // Load monster and projectile
+        console.log('Loading monster and projectile...');
+        this.load.image('monster', 'images/characters/monster.gif');
+        this.load.image('projectile', 'images/projectiles/Projectile1.png');
         
         // Add specific error handling for collectibles
         this.load.on('loaderror', (file) => {
@@ -114,11 +124,13 @@ class MallScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
         
         this.createMallLevel();
         this.createPlayer();
         this.createStores();
         this.createCollectibles();
+        this.createMonster();
         this.setupCollisions();
         
         // Add some decorative elements
@@ -467,6 +479,71 @@ class MallScene extends Phaser.Scene {
         console.log('Room 1 collectible should now work properly');
     }
     
+    createMonster() {
+        // Create monster in Room 2 to block the parfait
+        this.monster = this.physics.add.sprite(600, 250, 'monster');
+        this.monster.setScale(0.4);
+        this.monster.setDepth(80); // Above collectibles but below UI
+        this.monster.setVisible(false); // Hidden initially
+        this.monster.body.setImmovable(true);
+        console.log('Monster created and positioned to block parfait in Room 2');
+    }
+    
+    shootProjectile() {
+        if (!this.player || !this.currentRoom) return;
+        
+        // Check cooldown
+        const currentTime = this.time.now;
+        if (currentTime - this.lastShootTime < this.shootCooldown) {
+            return; // Still in cooldown
+        }
+        
+        // Create projectile at player position
+        const projectile = this.physics.add.sprite(this.player.x, this.player.y, 'projectile');
+        projectile.setScale(0.2); // Smaller scale
+        projectile.setDepth(90);
+        
+        // Calculate direction based on player's last movement
+        let velocityX = 0;
+        let velocityY = 0;
+        const speed = 300;
+        
+        if (this.cursors.left.isDown || this.wasd.A.isDown) {
+            velocityX = -speed;
+        } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+            velocityX = speed;
+        }
+        
+        if (this.cursors.up.isDown || this.wasd.W.isDown) {
+            velocityY = -speed;
+        } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+            velocityY = speed;
+        }
+        
+        // If no movement keys are pressed, shoot in the direction the player is facing
+        if (velocityX === 0 && velocityY === 0) {
+            velocityX = speed; // Default to right direction
+        }
+        
+        projectile.setVelocity(velocityX, velocityY);
+        
+        // Add to projectiles array
+        this.projectiles.push(projectile);
+        
+        // Update last shoot time
+        this.lastShootTime = currentTime;
+        
+        // Remove projectile after 2 seconds
+        this.time.delayedCall(2000, () => {
+            if (projectile && projectile.active) {
+                projectile.destroy();
+                this.projectiles = this.projectiles.filter(p => p !== projectile);
+            }
+        });
+        
+        console.log('Projectile fired!');
+    }
+    
     forceResetGame() {
         // Completely reset the game state
         console.log('=== FORCE RESETTING GAME ===');
@@ -553,6 +630,16 @@ class MallScene extends Phaser.Scene {
         // Add collision between player and stores
         this.physics.add.collider(this.player, this.stores, this.onStoreCollision, null, this);
         
+        // Add collision between player and monster
+        if (this.monster) {
+            this.physics.add.collider(this.player, this.monster, this.onMonsterCollision, null, this);
+        }
+        
+        // Add collision between projectiles and monster
+        if (this.monster) {
+            this.physics.add.overlap(this.projectiles, this.monster, this.onProjectileHitMonster, null, this);
+        }
+        
         console.log('Collisions and solid bodies set up');
     }
 
@@ -572,6 +659,58 @@ class MallScene extends Phaser.Scene {
         }
         
         console.log('Player collided with:', store.name);
+    }
+    
+    onMonsterCollision(player, monster) {
+        // Block player from approaching the monster
+        console.log('Player blocked by monster!');
+        
+        // Show warning message
+        if (!this.monsterWarning) {
+            this.monsterWarning = this.add.text(400, 250, 'MONSTER BLOCKS THE WAY!', {
+                fontSize: '20px',
+                fill: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 10, y: 5 }
+            });
+            this.monsterWarning.setOrigin(0.5);
+            this.monsterWarning.setDepth(100);
+            
+            // Remove warning after 2 seconds
+            this.time.delayedCall(2000, () => {
+                if (this.monsterWarning) {
+                    this.monsterWarning.destroy();
+                    this.monsterWarning = null;
+                }
+            });
+        }
+    }
+    
+    onProjectileHitMonster(projectile, monster) {
+        // Destroy both projectile and monster
+        projectile.destroy();
+        monster.destroy();
+        this.monster = null;
+        
+        // Remove projectile from array
+        this.projectiles = this.projectiles.filter(p => p !== projectile);
+        
+        // Show victory message
+        const victoryText = this.add.text(400, 250, 'MONSTER DEFEATED!', {
+            fontSize: '24px',
+            fill: '#00ff00',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        victoryText.setOrigin(0.5);
+        victoryText.setDepth(100);
+        
+        // Remove victory message after 3 seconds
+        this.time.delayedCall(3000, () => {
+            victoryText.destroy();
+        });
+        
+        console.log('Monster defeated by projectile!');
     }
 
     update() {
@@ -667,6 +806,11 @@ class MallScene extends Phaser.Scene {
         // Check for store entry with SPACE
         if (this.spaceKey.isDown) {
             this.checkStoreEntry();
+        }
+        
+        // Check for shooting with X key
+        if (this.shootKey.isDown && this.currentRoom) {
+            this.shootProjectile();
         }
     }
 
@@ -843,6 +987,12 @@ class MallScene extends Phaser.Scene {
                 } else if (roomKey === 'room2') {
                     collectible.setPosition(650, 250); // Top-right area of room
                     console.log(`✅ Showing ${collectible.name} in ${roomKey} at position 650,250`);
+                    
+                    // Show monster in Room 2 to block the parfait
+                    if (this.monster) {
+                        this.monster.setVisible(true);
+                        console.log('🐉 Monster appeared in Room 2!');
+                    }
                 } else if (roomKey === 'room3') {
                     collectible.setPosition(200, 450); // Bottom-left area of room
                     console.log(`✅ Showing ${collectible.name} in ${roomKey} at position 200,450`);
@@ -923,6 +1073,11 @@ class MallScene extends Phaser.Scene {
                 collectible.body.setEnable(false);
             }
         });
+        
+        // Hide monster when back in mall
+        if (this.monster) {
+            this.monster.setVisible(false);
+        }
     }
 
     updateInstructions(text) {
