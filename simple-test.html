@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Image Test</title>
+    <style>
+        body {
+            margin: 20px;
+            background-color: #2c3e50;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .image-container {
+            margin: 20px 0;
+            padding: 10px;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+        }
+        img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #fff;
+            margin: 10px;
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #c0392b;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #27ae60;
+            background-color: #2ecc71;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Loading Test</h1>
+    
+    <div class="image-container">
+        <h2>Player Character</h2>
+        <img src="images/characters/player.jpg" alt="Player" onload="imageLoaded('player')" onerror="imageError('player')">
+        <div id="player-status">Loading...</div>
+    </div>
+    
+    <div class="image-container">
+        <h2>Store 1</h2>
+        <img src="images/stores/Store1.png" alt="Store 1" onload="imageLoaded('store1')" onerror="imageError('store1')">
+        <div id="store1-status">Loading...</div>
+    </div>
+    
+    <div class="image-container">
+        <h2>Store 2</h2>
+        <img src="images/stores/Store2.png" alt="Store 2" onload="imageLoaded('store2')" onerror="imageError('store2')">
+        <div id="store2-status">Loading...</div>
+    </div>
+    
+    <div class="image-container">
+        <h2>Store 3</h2>
+        <img src="images/stores/Store3.png" alt="Store 3" onload="imageLoaded('store3')" onerror="imageError('store3')">
+        <div id="store3-status">Loading...</div>
+    </div>
+    
+    <div class="image-container">
+        <h2>File Paths</h2>
+        <p>Player: <code>images/characters/player.jpg</code></p>
+        <p>Store 1: <code>images/stores/Store1.png</code></p>
+        <p>Store 2: <code>images/stores/Store2.png</code></p>
+        <p>Store 3: <code>images/stores/Store3.png</code></p>
+    </div>
+
+    <script>
+        function imageLoaded(imageName) {
+            const statusElement = document.getElementById(imageName + '-status');
+            statusElement.innerHTML = '<span class="success">✓ Loaded successfully</span>';
+            console.log(`${imageName} loaded successfully`);
+        }
+        
+        function imageError(imageName) {
+            const statusElement = document.getElementById(imageName + '-status');
+            statusElement.innerHTML = '<span class="error">✗ Failed to load</span>';
+            console.error(`${imageName} failed to load`);
+        }
+        
+        // Check if files exist
+        window.addEventListener('load', function() {
+            console.log('Page loaded, checking images...');
+        });
+    </script>
+</body>
+</html> 
