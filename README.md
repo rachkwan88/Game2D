@@ -49,3 +49,4 @@ If you open `index.html` directly, the images won't load due to CORS restriction
 - **WASD** or **Arrow Keys**: Move the player around the mall
 - **SPACE**: Enter stores when near them 
 
+ 

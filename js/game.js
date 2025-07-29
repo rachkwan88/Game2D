@@ -11,6 +11,14 @@ class MallScene extends Phaser.Scene {
         this.currentStore = null;
         this.roomBackground = null;
         this.mallElements = [];
+        this.collectibles = [];
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        this.collectionText = null;
+        console.log('Constructor: Collection status initialized at 0/3');
     }
 
     preload() {
@@ -31,6 +39,27 @@ class MallScene extends Phaser.Scene {
         this.load.image('room1', 'images/rooms/Room1.jpg');
         this.load.image('room2', 'images/rooms/Room2.jpg');
         this.load.image('room3', 'images/rooms/Room3.jpg');
+        
+        // Load collectibles
+        console.log('Loading collectibles...');
+        this.load.image('collectable1', 'images/collectables/Collectable1.png');
+        this.load.image('collectable2', 'images/collectables/Collectable2.png');
+        this.load.image('collectable3', 'images/collectables/Collectable3.png');
+        
+        // Add specific error handling for collectibles
+        this.load.on('loaderror', (file) => {
+            if (file.key.includes('collectable')) {
+                console.error(`❌ Failed to load collectible: ${file.key}`);
+                console.error(`File path: ${file.src}`);
+            }
+        });
+        
+        this.load.on('complete', () => {
+            console.log('✅ All collectibles loaded successfully');
+            console.log('Available collectible textures:', 
+                Object.keys(this.textures.list).filter(key => key.includes('collectable'))
+            );
+        });
         
         // Add load event listeners
         this.load.on('complete', () => {
@@ -64,6 +93,12 @@ class MallScene extends Phaser.Scene {
             graphics.lineStyle(2, 0x000000);
             graphics.strokeRect(0, 0, 64, 48);
             graphics.generateTexture(key, 64, 48);
+        } else if (key === 'collectable1' || key === 'collectable2' || key === 'collectable3') {
+            graphics.fillStyle(0xffff00); // Yellow for collectibles
+            graphics.fillRect(0, 0, 32, 32);
+            graphics.lineStyle(2, 0xffaa00);
+            graphics.strokeRect(0, 0, 32, 32);
+            graphics.generateTexture(key, 32, 32);
         }
         
         graphics.destroy();
@@ -83,6 +118,7 @@ class MallScene extends Phaser.Scene {
         this.createMallLevel();
         this.createPlayer();
         this.createStores();
+        this.createCollectibles();
         this.setupCollisions();
         
         // Add some decorative elements
@@ -90,6 +126,44 @@ class MallScene extends Phaser.Scene {
         
         // Store mall elements for hiding/showing
         this.mallElements = [this.player, ...this.stores];
+        
+        // Force reset collection status before creating tracker
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        console.log('Forced reset collection status in create():', this.collectedItems);
+        
+        // Create collection tracker text
+        this.createCollectionTracker();
+        
+        // Start monitoring for unexpected collection status changes
+        this.monitorCollectionStatus();
+        
+        // Force reset collection status to ensure nothing is collected
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        this.updateCollectionTracker();
+        
+        // Force reset all collectibles to uncollected state
+        this.collectibles.forEach(collectible => {
+            if (collectible && !collectible.destroyed) {
+                collectible.setVisible(false);
+                if (collectible.body) {
+                    collectible.body.setEnable(false);
+                }
+            }
+        });
+        
+        // Debug: Check collectible visibility
+        console.log('Checking collectible visibility after creation:');
+        this.collectibles.forEach(collectible => {
+            console.log(`${collectible.name}: visible=${collectible.visible}, room=${collectible.room}, destroyed=${collectible.destroyed}`);
+        });
         
         console.log('Create completed');
     }
@@ -155,11 +229,11 @@ class MallScene extends Phaser.Scene {
     createStores() {
         console.log('Creating stores');
         
-        // All stores aligned horizontally at y=200 with more spacing
+        // All stores aligned horizontally at y=200 with clear spacing
         // Store 1 (Left)
-        const store1 = this.physics.add.sprite(120, 200, 'store1');
+        const store1 = this.physics.add.sprite(80, 200, 'store1');
         store1.name = 'Store 1';
-        store1.setScale(0.5); // Smaller scale for more space
+        store1.setScale(0.4); // Even smaller scale for more space
         store1.setDepth(5);
         console.log('Store 1 created at:', store1.x, store1.y);
         this.stores.push(store1);
@@ -167,18 +241,24 @@ class MallScene extends Phaser.Scene {
         // Store 2 (Center)
         const store2 = this.physics.add.sprite(400, 200, 'store2');
         store2.name = 'Store 2';
-        store2.setScale(0.5); // Smaller scale for more space
+        store2.setScale(0.4); // Even smaller scale for more space
         store2.setDepth(5);
         console.log('Store 2 created at:', store2.x, store2.y);
         this.stores.push(store2);
 
         // Store 3 (Right)
-        const store3 = this.physics.add.sprite(680, 200, 'store3');
+        const store3 = this.physics.add.sprite(720, 200, 'store3');
         store3.name = 'Store 3';
-        store3.setScale(0.5); // Smaller scale for more space
+        store3.setScale(0.4); // Even smaller scale for more space
         store3.setDepth(5);
         console.log('Store 3 created at:', store3.x, store3.y);
         this.stores.push(store3);
+        
+        // Debug store positions
+        console.log('=== STORE POSITIONS ===');
+        this.stores.forEach((store, index) => {
+            console.log(`Store ${index + 1}: "${store.name}" at (${store.x}, ${store.y})`);
+        });
 
         // Add store labels
         this.stores.forEach((store, index) => {
@@ -195,6 +275,251 @@ class MallScene extends Phaser.Scene {
         });
         
         console.log('All stores created:', this.stores.length);
+    }
+
+    createCollectibles() {
+        console.log('Creating collectibles');
+        
+        // Create collectibles for each room with proper texture checking
+        const collectible1 = this.physics.add.sprite(100, 100, 'collectable1');
+        collectible1.setScale(0.3); // Smaller scale for better fit
+        collectible1.setDepth(100); // Very high depth to be above everything including backgrounds
+        collectible1.name = 'collectable1';
+        collectible1.room = 'room1';
+        collectible1.setVisible(false); // Hidden initially
+        collectible1.setInteractive(); // Make it interactive
+        // Safely disable physics body if it exists
+        if (collectible1 && collectible1.body) {
+            collectible1.body.setEnable(false);
+        }
+        
+        const collectible2 = this.physics.add.sprite(700, 150, 'collectable2');
+        collectible2.setScale(0.3); // Smaller scale for better fit
+        collectible2.setDepth(100); // Very high depth to be above everything including backgrounds
+        collectible2.name = 'collectable2';
+        collectible2.room = 'room2';
+        collectible2.setVisible(false); // Hidden initially
+        collectible2.setInteractive(); // Make it interactive
+        // Safely disable physics body if it exists
+        if (collectible2 && collectible2.body) {
+            collectible2.body.setEnable(false);
+        }
+        
+        const collectible3 = this.physics.add.sprite(200, 550, 'collectable3');
+        collectible3.setScale(0.3); // Smaller scale for better fit
+        collectible3.setDepth(100); // Very high depth to be above everything including backgrounds
+        collectible3.name = 'collectable3';
+        collectible3.room = 'room3';
+        collectible3.setVisible(false); // Hidden initially
+        collectible3.setInteractive(); // Make it interactive
+        // Safely disable physics body if it exists
+        if (collectible3 && collectible3.body) {
+            collectible3.body.setEnable(false);
+        }
+        
+        this.collectibles = [collectible1, collectible2, collectible3];
+        
+        // Ensure all collectibles are hidden initially
+        this.collectibles.forEach(collectible => {
+            collectible.setVisible(false);
+            if (collectible && collectible.body) {
+                collectible.body.setEnable(false);
+            }
+        });
+        
+        // Don't add collision detection here - we'll add it only when entering rooms
+        console.log('Collectibles created with disabled physics bodies');
+        
+        console.log('Collectibles created:', this.collectibles.length);
+        console.log('Collection status at creation:', this.collectedItems);
+        
+        // Debug: Check if textures loaded
+        this.collectibles.forEach(collectible => {
+            if (this.textures.exists(collectible.texture.key)) {
+                console.log(`✅ ${collectible.name} texture loaded successfully`);
+                console.log(`📁 Texture key: ${collectible.texture.key}`);
+                console.log(`🖼️ Texture source: ${collectible.texture.source[0].src || 'unknown'}`);
+                console.log(`📏 Texture size: ${collectible.texture.source[0].width}x${collectible.texture.source[0].height}`);
+                console.log(`🎨 Is fallback texture: ${collectible.texture.key.includes('fallback')}`);
+            } else {
+                console.log(`❌ ${collectible.name} texture NOT found`);
+                console.log(`🔍 Looking for texture key: ${collectible.texture.key}`);
+                // Create fallback texture for missing collectible
+                this.createFallbackTexture(collectible.texture.key);
+            }
+        });
+        
+        // Verify all collectible textures are available
+        const availableTextures = Object.keys(this.textures.list);
+        const collectibleTextures = availableTextures.filter(key => key.includes('collectable'));
+        console.log(`📊 Available collectible textures: ${collectibleTextures.length}/3`);
+        console.log(`📋 Collectible texture list:`, collectibleTextures);
+    }
+
+    onCollectiblePickup(player, collectible) {
+        console.log(`🎯 COLLECTION ATTEMPT: ${collectible.name}`);
+        console.log(`📊 Current collection status:`, this.collectedItems);
+        console.log(`📍 Collectible position: ${collectible.x}, ${collectible.y}`);
+        console.log(`👤 Player position: ${player.x}, ${player.y}`);
+        
+        if (!this.collectedItems[collectible.name]) {
+            // Mark as collected
+            this.collectedItems[collectible.name] = true;
+            console.log(`✅ ${collectible.name} marked as collected`);
+            
+            // Remove the collectible from the scene
+            collectible.destroy();
+            console.log(`🗑️ ${collectible.name} destroyed from scene`);
+            
+            // Show collection message
+            const message = this.add.text(400, 250, `Collected ${collectible.name}!`, {
+                fontSize: '24px',
+                fill: '#ffff00',
+                backgroundColor: '#000000',
+                padding: { x: 10, y: 5 }
+            });
+            message.setOrigin(0.5);
+            message.setDepth(25);
+            
+            // Remove message after 2 seconds
+            this.time.delayedCall(2000, () => {
+                message.destroy();
+            });
+            
+            // Update collection tracker
+            this.updateCollectionTracker();
+            
+            console.log(`🎉 Successfully collected ${collectible.name}!`);
+        } else {
+            console.log(`❌ ${collectible.name} already collected`);
+        }
+    }
+
+    createCollectionTracker() {
+        this.collectionText = this.add.text(20, 20, 'Collectibles: 0/3', {
+            fontSize: '16px',
+            fill: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 8, y: 4 }
+        });
+        this.collectionText.setDepth(30);
+        
+        // Ensure collection status starts at 0
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        
+        // Force update to show 0/3
+        this.updateCollectionTracker();
+        console.log('Collection tracker initialized at 0/3');
+        console.log('Initial collection status:', this.collectedItems);
+    }
+
+    updateCollectionTracker() {
+        const collected = Object.values(this.collectedItems).filter(Boolean).length;
+        this.collectionText.setText(`Collectibles: ${collected}/3`);
+        console.log(`Collection tracker updated: ${collected}/3`);
+        console.log(`Current collection status:`, this.collectedItems);
+        console.log(`True values:`, Object.values(this.collectedItems).filter(Boolean));
+    }
+    
+    resetCollectibles() {
+        // Reset all collectibles for testing
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        this.updateCollectionTracker();
+        console.log('Collectibles reset to 0/3');
+    }
+    
+
+    
+    debugCollectibles() {
+        // Debug collectibles status
+        console.log('=== COLLECTIBLES DEBUG ===');
+        console.log('Collection status:', this.collectedItems);
+        this.collectibles.forEach(collectible => {
+            console.log(`${collectible.name}: visible=${collectible.visible}, room=${collectible.room}, position=${collectible.x},${collectible.y}`);
+        });
+        console.log('Current room:', this.currentRoom);
+        console.log('========================');
+    }
+    
+    fixRoom1Collectible() {
+        // Force fix Room 1 collectible
+        console.log('=== FIXING ROOM 1 COLLECTIBLE ===');
+        this.collectedItems.collectable1 = false;
+        this.updateCollectionTracker();
+        
+        this.collectibles.forEach(collectible => {
+            if (collectible.name === 'collectable1') {
+                collectible.setVisible(false);
+                if (collectible.body) {
+                    collectible.body.setEnable(false);
+                }
+                console.log(`🔧 Reset ${collectible.name} for Room 1`);
+            }
+        });
+        console.log('Room 1 collectible should now work properly');
+    }
+    
+    forceResetGame() {
+        // Completely reset the game state
+        console.log('=== FORCE RESETTING GAME ===');
+        
+        // Reset collection status
+        this.collectedItems = {
+            collectable1: false,
+            collectable2: false,
+            collectable3: false
+        };
+        
+        // Destroy existing collectibles and recreate them
+        this.collectibles.forEach(collectible => {
+            if (collectible && collectible.destroy) {
+                collectible.destroy();
+            }
+        });
+        
+        // Clear collectibles array
+        this.collectibles = [];
+        
+        // Recreate collectibles
+        this.createCollectibles();
+        
+        // Update tracker
+        this.updateCollectionTracker();
+        
+        console.log('Game force reset complete. Collection status:', this.collectedItems);
+        console.log('All collectibles recreated and reset to 0/3');
+    }
+    
+    monitorCollectionStatus() {
+        // Monitor collection status changes
+        const originalStatus = { ...this.collectedItems };
+        
+        // Check every second for unexpected changes
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                const currentStatus = { ...this.collectedItems };
+                const changed = Object.keys(currentStatus).filter(key => 
+                    currentStatus[key] !== originalStatus[key]
+                );
+                
+                if (changed.length > 0) {
+                    console.log(`🚨 UNEXPECTED COLLECTION STATUS CHANGE!`);
+                    console.log(`Changed items:`, changed);
+                    console.log(`Original:`, originalStatus);
+                    console.log(`Current:`, currentStatus);
+                }
+            },
+            loop: true
+        });
     }
 
     addDecorations() {
@@ -368,24 +693,37 @@ class MallScene extends Phaser.Scene {
                 store.x, store.y
             );
             
-            console.log(`Distance to ${store.name}: ${distance}`);
+            console.log(`Distance to ${store.name}: ${distance} (Player at ${this.player.x}, ${this.player.y}, Store at ${store.x}, ${store.y})`);
             
-            if (distance < 200) { // Much larger distance for easier entry
+            if (distance < 150) { // Smaller distance for more precise detection
+                console.log(`🎯 PLAYER POSITION DEBUG: Player at (${this.player.x}, ${this.player.y})`);
+                console.log(`🎯 STORE DISTANCE DEBUG: ${store.name} at (${store.x}, ${this.player.y}) - Distance: ${distance}`);
+                console.log(`🎯 NEAREST STORE: ${store.name} at distance ${distance}`);
                 console.log(`Near ${store.name}, teleporting to room...`);
                 
                 // Draw border around the store that was hit
                 this.drawStoreBorder(store);
                 
+
+                
                 // Determine which room to enter based on store
                 let roomKey = 'room1'; // Default
+                console.log(`🔍 STORE DETECTION: Store name is "${store.name}"`);
+                
                 if (store.name === 'Store 1') {
                     roomKey = 'room1';
+                    console.log(`✅ Detected Store 1, entering room1`);
                 } else if (store.name === 'Store 2') {
                     roomKey = 'room2';
+                    console.log(`✅ Detected Store 2, entering room2`);
                 } else if (store.name === 'Store 3') {
                     roomKey = 'room3';
+                    console.log(`✅ Detected Store 3, entering room3`);
+                } else {
+                    console.log(`❌ Unknown store name: "${store.name}", defaulting to room1`);
                 }
                 
+                console.log(`🎯 Final room assignment: ${roomKey}`);
                 this.enterRoom(roomKey, store.name);
                 nearStore = true;
                 return;
@@ -442,7 +780,7 @@ class MallScene extends Phaser.Scene {
         // Create room background
         this.roomBackground = this.add.image(400, 300, roomKey);
         this.roomBackground.setScale(2.5); // Much larger scale to stretch and fill screen
-        this.roomBackground.setDepth(1);
+        this.roomBackground.setDepth(0); // Background should be behind everything
         
         // Show player in room
         this.player.setVisible(true);
@@ -465,6 +803,84 @@ class MallScene extends Phaser.Scene {
                 store.label.setVisible(false);
             }
         });
+        
+        // Show collectible for this room if not already collected
+        let collectibleShown = false;
+        console.log(`=== ENTERING ROOM: ${roomKey} ===`);
+        console.log(`Current collection status:`, this.collectedItems);
+        console.log(`Available collectibles:`, this.collectibles.length);
+        
+        this.collectibles.forEach((collectible, index) => {
+            console.log(`\n--- Checking Collectible ${index + 1} ---`);
+            console.log(`Name: ${collectible.name}`);
+            console.log(`Room: ${collectible.room}`);
+            console.log(`Target Room: ${roomKey}`);
+            console.log(`Collected: ${this.collectedItems[collectible.name]}`);
+            console.log(`Visible: ${collectible.visible}`);
+            console.log(`Position: ${collectible.x}, ${collectible.y}`);
+            console.log(`Scale: ${collectible.scaleX}, ${collectible.scaleY}`);
+            console.log(`Depth: ${collectible.depth}`);
+            
+            if (collectible.room === roomKey && !this.collectedItems[collectible.name]) {
+                collectible.setVisible(true);
+                collectible.setDepth(100); // Ensure collectible is in front of everything
+                // Safely enable physics body if it exists
+                if (collectible && collectible.body) {
+                    collectible.body.setEnable(true);
+                }
+                
+                // Special debug for Room 1
+                if (roomKey === 'room1') {
+                    console.log(`🔍 ROOM 1 DEBUG: ${collectible.name} should be visible`);
+                    console.log(`🔍 ROOM 1 DEBUG: Collection status for ${collectible.name}: ${this.collectedItems[collectible.name]}`);
+                    console.log(`🔍 ROOM 1 DEBUG: Collectible position will be: 150, 200`);
+                }
+                
+                // Position collectibles in different locations based on room
+                if (roomKey === 'room1') {
+                    collectible.setPosition(150, 200); // Top-left area of room
+                    console.log(`✅ Showing ${collectible.name} in ${roomKey} at position 150,200`);
+                } else if (roomKey === 'room2') {
+                    collectible.setPosition(650, 250); // Top-right area of room
+                    console.log(`✅ Showing ${collectible.name} in ${roomKey} at position 650,250`);
+                } else if (roomKey === 'room3') {
+                    collectible.setPosition(200, 450); // Bottom-left area of room
+                    console.log(`✅ Showing ${collectible.name} in ${roomKey} at position 200,450`);
+                }
+                
+                // Add collision detection for this specific collectible with a delay to prevent immediate collection
+                this.time.delayedCall(500, () => {
+                    this.physics.add.overlap(this.player, collectible, this.onCollectiblePickup, null, this);
+                    console.log(`🎯 Collision detection enabled for ${collectible.name}`);
+                });
+                
+                collectibleShown = true;
+                console.log(`🎯 Collectible ${collectible.name} is now VISIBLE`);
+            } else {
+                collectible.setVisible(false);
+                // Safely disable physics body if it exists
+                if (collectible && collectible.body) {
+                    collectible.body.setEnable(false);
+                }
+                if (collectible.room === roomKey) {
+                    console.log(`❌ ${collectible.name} already collected or wrong room`);
+                } else {
+                    console.log(`❌ ${collectible.name} wrong room (${collectible.room} vs ${roomKey})`);
+                }
+            }
+        });
+        
+        if (!collectibleShown) {
+            console.log(`⚠️ No collectible shown for room ${roomKey}`);
+            console.log(`This means either:`);
+            console.log(`1. All collectibles for this room are already collected`);
+            console.log(`2. No collectible is assigned to this room`);
+            console.log(`3. There's an error in the collectible creation`);
+        }
+        
+        // Debug: Show collection status
+        console.log(`\nFinal collection status:`, this.collectedItems);
+        console.log(`=== END ROOM ENTRY ===\n`);
     }
 
     exitRoom() {
@@ -496,6 +912,15 @@ class MallScene extends Phaser.Scene {
         this.stores.forEach(store => {
             if (store.label) {
                 store.label.setVisible(true);
+            }
+        });
+        
+        // Hide all collectibles when back in mall
+        this.collectibles.forEach(collectible => {
+            collectible.setVisible(false);
+            // Safely disable physics body if it exists
+            if (collectible && collectible.body) {
+                collectible.body.setEnable(false);
             }
         });
     }
