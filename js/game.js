@@ -30,8 +30,8 @@ class MallScene extends Phaser.Scene {
         console.log('Preload started');
         
         // Load player image
-        console.log('Loading player image: images/characters/player.png');
-        this.load.image('player', 'images/characters/player.png');
+        console.log('Loading player image: images/characters/player1.png');
+        this.load.image('player', 'images/characters/player1.png');
         
         // Load store images with error handling
         console.log('Loading store images...');
@@ -213,10 +213,10 @@ class MallScene extends Phaser.Scene {
         if (this.textures.exists('player')) {
             console.log('Player texture found, using actual image');
             this.player = this.physics.add.sprite(400, 400, 'player'); // Moved down for more space
-            this.player.setScale(0.4); // Smaller scale for transparent PNG
+            this.player.setScale(4.0); // Scale 4 for 32x32 pixel character
             this.player.setDepth(10); // Put player in front
             
-            console.log('Player transparent PNG loaded successfully');
+            console.log('Player 32x32 PNG loaded successfully');
         } else {
             console.log('Player texture NOT found, creating fallback');
             // Create fallback player
@@ -229,7 +229,7 @@ class MallScene extends Phaser.Scene {
             graphics.destroy();
             
             this.player = this.physics.add.sprite(400, 400, 'player-fallback'); // Moved down for more space
-            this.player.setScale(2);
+            this.player.setScale(4.0); // Scale 4 for 32x32 pixel character
             this.player.setDepth(10); // Put player in front
             console.log('Using fallback green square for player');
         }
