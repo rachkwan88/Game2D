@@ -23,6 +23,7 @@ class MallScene extends Phaser.Scene {
         this.shootKey = null;
         this.lastShootTime = 0;
         this.shootCooldown = 500; // 500ms cooldown between shots
+        this.mainBackground = null;
         console.log('Constructor: Collection status initialized at 0/3');
     }
 
@@ -55,6 +56,10 @@ class MallScene extends Phaser.Scene {
         console.log('Loading monster and projectile...');
         this.load.image('monster', 'images/characters/monster.gif');
         this.load.image('projectile', 'images/projectiles/Projectile1.png');
+        
+        // Load main background
+        console.log('Loading main background...');
+        this.load.image('mainbackground', 'images/backgrounds/MainBackground.png');
         
         // Add specific error handling for collectibles
         this.load.on('loaderror', (file) => {
@@ -126,6 +131,7 @@ class MallScene extends Phaser.Scene {
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
         
+        this.createMainBackground();
         this.createMallLevel();
         this.createPlayer();
         this.createStores();
@@ -194,16 +200,8 @@ class MallScene extends Phaser.Scene {
     createMallLevel() {
         console.log('Creating mall level');
         
-        // Create mall floor
-        for (let x = 0; x < 800; x += 32) {
-            for (let y = 0; y < 600; y += 32) {
-                const floorTile = this.add.image(x, y, 'floor');
-                floorTile.setOrigin(0);
-                console.log(`Floor tile at ${x}, ${y}`);
-            }
-        }
-        
-        console.log('Mall level created');
+        // Mall level now uses background image instead of floor tiles
+        console.log('Mall level created with background image');
     }
 
     createPlayer() {
@@ -243,7 +241,7 @@ class MallScene extends Phaser.Scene {
         
         // All stores aligned horizontally at y=200 with clear spacing
         // Store 1 (Left)
-        const store1 = this.physics.add.sprite(80, 200, 'store1');
+        const store1 = this.physics.add.sprite(80, 240, 'store1');
         store1.name = 'Store 1';
         store1.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store1.setDepth(5);
@@ -253,7 +251,7 @@ class MallScene extends Phaser.Scene {
         this.stores.push(store1);
 
         // Store 2 (Center)
-        const store2 = this.physics.add.sprite(400, 200, 'store2');
+        const store2 = this.physics.add.sprite(400, 240, 'store2');
         store2.name = 'Store 2';
         store2.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store2.setDepth(5);
@@ -263,7 +261,7 @@ class MallScene extends Phaser.Scene {
         this.stores.push(store2);
 
         // Store 3 (Right)
-        const store3 = this.physics.add.sprite(720, 200, 'store3');
+        const store3 = this.physics.add.sprite(720, 240, 'store3');
         store3.name = 'Store 3';
         store3.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store3.setDepth(5);
@@ -493,6 +491,14 @@ class MallScene extends Phaser.Scene {
         this.monster.setVisible(false); // Hidden initially
         this.monster.body.setImmovable(true);
         console.log('Monster created and positioned to block parfait in Room 2');
+    }
+    
+    createMainBackground() {
+        // Create main background that stretches to fill the entire game map
+        this.mainBackground = this.add.image(400, 380, 'mainbackground');
+        this.mainBackground.setDisplaySize(800, 920); // Stretch a bit more
+        this.mainBackground.setDepth(-10); // Behind everything
+        console.log('Main background created and stretched to fit the entire game map');
     }
     
     shootProjectile() {
@@ -927,6 +933,11 @@ class MallScene extends Phaser.Scene {
             element.setVisible(false);
         });
         
+        // Hide main background when entering room
+        if (this.mainBackground) {
+            this.mainBackground.setVisible(false);
+        }
+        
         // Create room background
         this.roomBackground = this.add.image(400, 300, roomKey);
         this.roomBackground.setScale(2.5); // Much larger scale to stretch and fill screen
@@ -1052,6 +1063,11 @@ class MallScene extends Phaser.Scene {
         this.mallElements.forEach(element => {
             element.setVisible(true);
         });
+        
+        // Show main background when back in mall
+        if (this.mainBackground) {
+            this.mainBackground.setVisible(true);
+        }
         
         // Reset player position to mall
         this.player.setPosition(400, 400);
