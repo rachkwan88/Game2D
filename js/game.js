@@ -245,6 +245,7 @@ class MallScene extends Phaser.Scene {
         store1.name = 'Store 1';
         store1.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store1.setDepth(5);
+        store1.setInteractive(); // Make clickable
         console.log('Store 1 created at:', store1.x, store1.y);
         console.log('Store 1 scale:', store1.scaleX, 'x', store1.scaleY);
         console.log('Store 1 display width:', store1.width * store1.scaleX);
@@ -255,6 +256,7 @@ class MallScene extends Phaser.Scene {
         store2.name = 'Store 2';
         store2.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store2.setDepth(5);
+        store2.setInteractive(); // Make clickable
         console.log('Store 2 created at:', store2.x, store2.y);
         console.log('Store 2 scale:', store2.scaleX, 'x', store2.scaleY);
         console.log('Store 2 display width:', store2.width * store2.scaleX);
@@ -265,6 +267,7 @@ class MallScene extends Phaser.Scene {
         store3.name = 'Store 3';
         store3.setScale(5.0); // Scale 5 for 32x32 pixel stores
         store3.setDepth(5);
+        store3.setInteractive(); // Make clickable
         console.log('Store 3 created at:', store3.x, store3.y);
         console.log('Store 3 scale:', store3.scaleX, 'x', store3.scaleY);
         console.log('Store 3 display width:', store3.width * store3.scaleX);
@@ -291,6 +294,13 @@ class MallScene extends Phaser.Scene {
         });
         
         console.log('All stores created:', this.stores.length);
+        
+        // Add click event handlers for stores
+        this.stores.forEach(store => {
+            store.on('pointerdown', () => {
+                this.onStoreClick(store);
+            });
+        });
     }
 
     createCollectibles() {
@@ -621,7 +631,7 @@ class MallScene extends Phaser.Scene {
         }).setOrigin(0.5);
         
         // Add instructions
-        this.instructionText = this.add.text(400, 550, 'Use WASD or Arrow Keys to move • Press SPACE near stores to teleport', {
+        this.instructionText = this.add.text(400, 550, 'Use WASD or Arrow Keys to move • Click on stores to enter • Press SPACE in rooms to exit', {
             fontSize: '14px',
             fill: '#ffffff',
             backgroundColor: '#000000',
@@ -724,6 +734,35 @@ class MallScene extends Phaser.Scene {
         
         console.log('Monster defeated by projectile!');
     }
+    
+    onStoreClick(store) {
+        if (this.currentRoom) {
+            console.log('Currently in room, cannot click stores');
+            return;
+        }
+        
+        console.log(`Clicked on ${store.name}!`);
+        
+        // Determine which room to enter based on store
+        let roomKey = 'room1'; // Default
+        console.log(`🔍 STORE CLICK: Store name is "${store.name}"`);
+        
+        if (store.name === 'Store 1') {
+            roomKey = 'room1';
+            console.log(`✅ Clicked Store 1, entering room1`);
+        } else if (store.name === 'Store 2') {
+            roomKey = 'room2';
+            console.log(`✅ Clicked Store 2, entering room2`);
+        } else if (store.name === 'Store 3') {
+            roomKey = 'room3';
+            console.log(`✅ Clicked Store 3, entering room3`);
+        } else {
+            console.log(`❌ Unknown store name: "${store.name}", defaulting to room1`);
+        }
+        
+        console.log(`🎯 Final room assignment: ${roomKey}`);
+        this.enterRoom(roomKey, store.name);
+    }
 
     update() {
         if (!this.player) return;
@@ -735,22 +774,30 @@ class MallScene extends Phaser.Scene {
             this.interactionHint = null;
         }
 
-        // Check if player is near any store and highlight
+        // Check if player is near any store entry point and highlight
         let nearAnyStore = false;
         console.log(`Player position: ${this.player.x}, ${this.player.y}`);
         
+        // Define specific entry points for each store
+        const entryPoints = {
+            'Store 1': { x: 80, y: 300 },
+            'Store 2': { x: 400, y: 300 },
+            'Store 3': { x: 720, y: 300 }
+        };
+        
         this.stores.forEach(store => {
+            const entryPoint = entryPoints[store.name];
             const distance = Phaser.Math.Distance.Between(
                 this.player.x, this.player.y,
-                store.x, store.y
+                entryPoint.x, entryPoint.y
             );
             
-            console.log(`${store.name} position: ${store.x}, ${store.y} - Distance: ${distance}`);
+            console.log(`${store.name} entry point: ${entryPoint.x}, ${entryPoint.y} - Distance: ${distance}`);
             
-            if (distance < 200) { // Much larger distance for easier detection
-                store.setTint(0x00ff00); // Green tint when near
+            if (distance < 100) { // Highlight when approaching entry point
+                store.setTint(0x00ff00); // Green tint when near entry point
                 nearAnyStore = true;
-                console.log(`Near ${store.name}!`);
+                console.log(`Near ${store.name} entry point!`);
             }
         });
 
@@ -797,27 +844,19 @@ class MallScene extends Phaser.Scene {
             console.log('Moving DOWN');
         }
 
-        // Check for room teleport with SPACE key
+        // Check for room teleport with SPACE key (only for exiting rooms)
         if (this.spaceKey.isDown && !this.spaceKeyPressed) {
             console.log('SPACE key pressed!');
             this.spaceKeyPressed = true;
             if (this.currentRoom) {
                 console.log('Currently in room, teleporting back to mall...');
                 this.exitRoom();
-            } else {
-                console.log('Currently in mall, checking if near store...');
-                this.checkRoomEntry();
             }
         }
         
         // Reset SPACE key state when released
         if (!this.spaceKey.isDown) {
             this.spaceKeyPressed = false;
-        }
-        
-        // Check for store entry with SPACE
-        if (this.spaceKey.isDown) {
-            this.checkStoreEntry();
         }
         
         // Check for shooting with X key
@@ -843,24 +882,31 @@ class MallScene extends Phaser.Scene {
         console.log('Checking room entry...');
         let nearStore = false;
         
+        // Define specific entry points for each store
+        const entryPoints = {
+            'Store 1': { x: 80, y: 300 }, // Entry point for Store 1
+            'Store 2': { x: 400, y: 300 }, // Entry point for Store 2
+            'Store 3': { x: 720, y: 300 }  // Entry point for Store 3
+        };
+        
         this.stores.forEach(store => {
+            // Check distance to the specific entry point for this store
+            const entryPoint = entryPoints[store.name];
             const distance = Phaser.Math.Distance.Between(
                 this.player.x, this.player.y,
-                store.x, store.y
+                entryPoint.x, entryPoint.y
             );
             
-            console.log(`Distance to ${store.name}: ${distance} (Player at ${this.player.x}, ${this.player.y}, Store at ${store.x}, ${store.y})`);
+            console.log(`Distance to ${store.name} entry point: ${distance} (Player at ${this.player.x}, ${this.player.y}, Entry point at ${entryPoint.x}, ${entryPoint.y})`);
             
-            if (distance < 150) { // Smaller distance for more precise detection
-                console.log(`🎯 PLAYER POSITION DEBUG: Player at (${this.player.x}, ${this.player.y})`);
-                console.log(`🎯 STORE DISTANCE DEBUG: ${store.name} at (${store.x}, ${this.player.y}) - Distance: ${distance}`);
-                console.log(`🎯 NEAREST STORE: ${store.name} at distance ${distance}`);
-                console.log(`Near ${store.name}, teleporting to room...`);
+            if (distance < 50) { // Very small distance for precise entry point detection
+                console.log(`🎯 PLAYER AT ENTRY POINT: ${store.name}`);
+                console.log(`🎯 ENTRY POINT DEBUG: Player at (${this.player.x}, ${this.player.y})`);
+                console.log(`🎯 ENTRY POINT DEBUG: ${store.name} entry at (${entryPoint.x}, ${entryPoint.y}) - Distance: ${distance}`);
+                console.log(`Near ${store.name} entry point, teleporting to room...`);
                 
                 // Draw border around the store that was hit
                 this.drawStoreBorder(store);
-                
-
                 
                 // Determine which room to enter based on store
                 let roomKey = 'room1'; // Default
@@ -887,7 +933,7 @@ class MallScene extends Phaser.Scene {
         });
         
         if (!nearStore) {
-            console.log('Not near any store - cannot teleport');
+            console.log('Not at any store entry point - cannot teleport');
         }
     }
 
@@ -936,11 +982,12 @@ class MallScene extends Phaser.Scene {
         // Hide main background when entering room
         if (this.mainBackground) {
             this.mainBackground.setVisible(false);
+            console.log('Main background hidden when entering room');
         }
         
         // Create room background
         this.roomBackground = this.add.image(400, 300, roomKey);
-        this.roomBackground.setScale(2.5); // Much larger scale to stretch and fill screen
+        this.roomBackground.setDisplaySize(800, 600); // Stretch to fit the game canvas exactly
         this.roomBackground.setDepth(0); // Background should be behind everything
         
         // Show player in room
@@ -1067,6 +1114,7 @@ class MallScene extends Phaser.Scene {
         // Show main background when back in mall
         if (this.mainBackground) {
             this.mainBackground.setVisible(true);
+            console.log('Main background shown when returning to mall');
         }
         
         // Reset player position to mall
